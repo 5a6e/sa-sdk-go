@@ -19,10 +19,10 @@ package consumers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/sensorsdata/sa-sdk-go/structs"
@@ -136,58 +136,5 @@ func (w *ConcurrentLogWriter) intRotate() error {
 }
 
 func InitConcurrentLogWriter(fname string, hourRotate bool) (*ConcurrentLogWriter, error) {
-	w := &ConcurrentLogWriter{
-		fname:      fname,
-		day:        time.Now().Day(),
-		hour:       time.Now().Hour(),
-		hourRotate: hourRotate,
-		rec:        make(chan string, CHANNEL_SIZE),
-	}
-
-	if err := w.intRotate(); err != nil {
-		fmt.Fprintf(os.Stderr, "ConcurrentLogWriter(%q): %s\n", w.fname, err)
-		return nil, err
-	}
-
-	w.wg.Add(1)
-
-	go func() {
-		defer func() {
-			if w.file != nil {
-				w.file.Sync()
-				w.file.Close()
-			}
-			w.wg.Done()
-		}()
-
-		for {
-			select {
-			case rec, ok := <-w.rec:
-				if !ok {
-					return
-				}
-
-				now := time.Now()
-
-				if (w.hourRotate && now.Hour() != w.hour) ||
-					(now.Day() != w.day) {
-					if err := w.intRotate(); err != nil {
-						fmt.Fprintf(os.Stderr, "ConcurrentLogWriter(%q): %s\n", w.fname, err)
-						return
-					}
-				}
-
-				syscall.Flock(int(w.file.Fd()), syscall.LOCK_EX)
-				_, err := fmt.Fprintln(w.file, rec)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "ConcurrentLogWriter(%q): %s\n", w.fname, err)
-					syscall.Flock(int(w.file.Fd()), syscall.LOCK_UN)
-					return
-				}
-				syscall.Flock(int(w.file.Fd()), syscall.LOCK_UN)
-			}
-		}
-	}()
-
-	return w, nil
+	return nil, errors.New("not supported on windows")
 }
